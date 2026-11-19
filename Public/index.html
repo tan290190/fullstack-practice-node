@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>System Monitor Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
+    input, select, button { padding: 6px 10px; margin-right: 6px; }
+    .online { color: green; font-weight: bold; }
+    .offline { color: crimson; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>Quản lý danh sách Server</h2>
+
+  <div>
+    <input id="nameInput" placeholder="Tên server (VD: SV5)" />
+    <input id="ipInput" placeholder="IP (VD: 192.168.1.50)" />
+    <select id="statusSelect">
+      <option value="online">online</option>
+      <option value="offline">offline</option>
+    </select>
+    <button onclick="addServer()">Thêm Server</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Tên</th>
+        <th>IP</th>
+        <th>Trạng thái</th>
+        <th>Thao tác</th>
+      </tr>
+    </thead>
+    <tbody id="serverList"></tbody>
+  </table>
+
+  <script>
+    const API_URL = "/servers";
+
+    // Tải danh sách server từ Backend API
+    async function loadServers() {
+      const res = await fetch(API_URL);
+      const servers = await res.json();
+      const tbody = document.getElementById("serverList");
+      tbody.innerHTML = "";
+
+      servers.forEach((sv) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${sv.id}</td>
+          <td>${sv.name}</td>
+          <td>${sv.ip}</td>
+          <td class="${sv.status}">${sv.status}</td>
+          <td><button onclick="deleteServer('${sv.name}')">Xóa</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Gửi POST thêm server mới vào Database qua API
+    async function addServer() {
+      const name = document.getElementById("nameInput").value.trim();
+      const ip = document.getElementById("ipInput").value.trim();
+      const status = document.getElementById("statusSelect").value;
+
+      if (!name || !ip) return alert("Nhập đủ Tên và IP nhé!");
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, ip, status })
+      });
+
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || "Thêm thất bại");
+
+      document.getElementById("nameInput").value = "";
+      document.getElementById("ipInput").value = "";
+      loadServers();
+    }
+
+    // Gửi DELETE xóa server theo tên
+    async function deleteServer(name) {
+      await fetch(`${API_URL}/${encodeURIComponent(name)}`, { method: "DELETE" });
+      loadServers();
+    }
+
+    loadServers();
+  </script>
+</body>
+</html>

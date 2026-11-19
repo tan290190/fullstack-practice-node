@@ -1,8 +1,10 @@
 const express = require("express");
+const db = require("./db");
 const app = express();
 const port = 3000;
 
 app.use(express.json());
+app.use(express.static("public"));
 
 const servers = [
   { name: "SV1", ip: "192.168.1.1", status: "online" },
@@ -16,16 +18,44 @@ app.get("/", (req, res) => {
   });
 });
 app.get("/servers", (req, res) => {
-  res.json(servers);
+  const { status } = req.query;
+  if (status) {
+    const rows = db
+      .prepare("SELECT * FROM servers WHERE status = ?")
+      .all(status);
+    return res.json(rows);
+  }
+  const rows = db.prepare("SELECT * FROM servers").all();
+
+  res.json(rows);
 });
-app.listen(port, () => {
-  console.log(`Server đang chạy tại http://localhost:${port}`);
-});
+
 app.post("/servers", (req, res) => {
   const { name, ip, status } = req.body;
 
   if (!name || !ip) {
-    return res.status(400).json({ error: "Thiếu name hoặc ip" });
+    return res
+      .status(400)
+      .json({ error: "Vui lòng nhập đầy đủ thông tin và Ip" });
+  }
+  try {
+    const insert = db.prepare(
+      "INSERT INTO servers (name, ip, status) VALUES (?, ?, ?)",
+    );
+    const result = insert.run(name, ip, status || "online");
+    res.status(201).json({
+      message: "Đã lưu server vào Database thành công",
+      data: {
+        id: Number(result.lastInsertRowid),
+        name,
+        ip,
+        status: status || "online",
+      },
+    });
+  } catch (error) {
+    res
+      .status(400)
+      .json({ error: "Tên server đã tồn tại hoặc dữ liệu không hợp lệ" });
   }
 
   const newServer = {
@@ -52,15 +82,16 @@ app.get("/servers", (req, res) => {
 });
 app.delete("/servers/:name", (req, res) => {
   const { name } = req.params;
-  const index = servers.findIndex((sv) => sv.name === name);
+  const del = db.prepare("DELETE FROM servers WHERE name = ?");
+  const result = del.run(name);
 
-  if (index === -1) {
-    return res.status(404).json({ error: `Không tìm thấy server ${name}` });
+  if (result.changes === 0) {
+    return res.status(404).json({ error: `Không tìm thấy server tên ${name}` });
   }
-  const deleted = servers.splice(index, 1);
   res.json({
-    message: `Đã xóa server ${name} `,
-    deleted: deleted[0],
-    remaining: servers.length,
+    message: `Đã xóa vĩnh viễn  server ${name} khỏi Database `,
   });
+});
+app.listen(port, () => {
+  console.log(`Server đang chạy tại http://localhost:${port}`);
 });
