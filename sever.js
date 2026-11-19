@@ -41,3 +41,26 @@ app.post("/servers", (req, res) => {
     totalServers: servers.length,
   });
 });
+app.get("/servers", (req, res) => {
+  const { status } = req.query;
+
+  if (status) {
+    const filtered = servers.filter((sv) => sv.status === status);
+    return res.json(filtered);
+  }
+  res.json(servers);
+});
+app.delete("/servers/:name", (req, res) => {
+  const { name } = req.params;
+  const index = servers.findIndex((sv) => sv.name === name);
+
+  if (index === -1) {
+    return res.status(404).json({ error: `Không tìm thấy server ${name}` });
+  }
+  const deleted = servers.splice(index, 1);
+  res.json({
+    message: `Đã xóa server ${name} `,
+    deleted: deleted[0],
+    remaining: servers.length,
+  });
+});
